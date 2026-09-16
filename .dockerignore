@@ -9,3 +9,7 @@
 **/*.log
 **/.DS_Store
 README.md
+.claude
+.agents
+.gitnexus
+graft

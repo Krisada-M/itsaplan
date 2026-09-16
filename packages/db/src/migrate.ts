@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
+import { getDirectDatabaseUrl } from './direct-url';
 import {
   pendingMigrations,
   pruneBackups,
@@ -13,10 +14,7 @@ import {
   writeBackup,
 } from './backup';
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error('DATABASE_URL is not set — cannot run migrations.');
-}
+const connectionString = getDirectDatabaseUrl();
 
 const migrationClient = postgres(connectionString, { max: 1 });
 const db = drizzle(migrationClient);

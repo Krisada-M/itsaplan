@@ -12,11 +12,12 @@ build
 # turbo
 .turbo
 
+# vercel
+.vercel/
 # env
 .env
-.env.local
-.env.*.local
-.env.test
+.env.*
+!.env.example
 
 # logs
 *.log
@@ -44,3 +45,6 @@ coverage
 
 # agent scratch space (test docs, drafts)
 .workspace/
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/

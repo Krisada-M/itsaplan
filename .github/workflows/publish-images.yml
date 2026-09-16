@@ -1,6 +1,6 @@
 name: Publish images
 
-# Builds the four service images and pushes them to GHCR, one manifest per service
+# Builds the six service images and pushes them to GHCR, one manifest per service
 # covering amd64 and arm64. Called by release.yml once a release is tagged; the
 # manual trigger republishes an existing tag.
 #
@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api, worker, bot, web]
+        service: [api, worker, bot, web, minio, minio-client]
         platform:
           - arch: amd64
             runner: ubuntu-24.04
@@ -54,11 +54,18 @@ jobs:
 
       # push-by-digest publishes the layers without a tag: the image is only
       # reachable by digest until the manifest job names it.
+      - id: dockerfile
+        run: |
+          case "${{ matrix.service }}" in
+            minio) echo "file=docker/minio/Dockerfile" >> "$GITHUB_OUTPUT" ;;
+            minio-client) echo "file=docker/minio-client/Dockerfile" >> "$GITHUB_OUTPUT" ;;
+            *) echo "file=apps/${{ matrix.service }}/Dockerfile" >> "$GITHUB_OUTPUT" ;;
+          esac
       - id: build
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: apps/${{ matrix.service }}/Dockerfile
+          file: ${{ steps.dockerfile.outputs.file }}
           platforms: linux/${{ matrix.platform.arch }}
           cache-from: type=gha,scope=${{ matrix.service }}-${{ matrix.platform.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}-${{ matrix.platform.arch }}
@@ -85,7 +92,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api, worker, bot, web]
+        service: [api, worker, bot, web, minio, minio-client]
     steps:
       - uses: actions/download-artifact@v8
         with:

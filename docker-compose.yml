@@ -1,46 +1,29 @@
 # ─────────────────────────────────────────────────────────────
-# Self-hosting stack: postgres + minio + api + worker + bot + web.
-# Coolify uses docker-compose.coolify.yml; local dev uses docker-compose.dev.yml
+# Self-hosting stack: minio + api + worker + bot + web.
+# Database is external (Supabase via DATABASE_URL / DATABASE_DIRECT_URL in .env).
 # (backing services only).
 #
 #   cp .env.example .env      # fill in the required values below
 #   docker compose up -d
 #
 # Required in .env (the stack refuses to start without them):
-#   POSTGRES_PASSWORD, BETTER_AUTH_SECRET, APP_ENCRYPTION_KEY,
+#   DATABASE_URL, BETTER_AUTH_SECRET, APP_ENCRYPTION_KEY,
 #   S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, API_URL, APP_URL
 # Generate each secret with: openssl rand -base64 32
 #
-# The four services run from images published on each release; update with
-#   docker compose pull && docker compose up -d
-# VERSION in .env pins a release (defaults to the latest one). To run this
-# checkout instead of the published images, build them:
-#   docker compose up -d --build
+# docker compose up -d builds api and web from local Dockerfiles.
 # ─────────────────────────────────────────────────────────────
 name: itsaplan
 
 services:
-  postgres:
-    image: postgres:17-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-itsaplan}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      POSTGRES_DB: ${POSTGRES_DB:-itsaplan}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-itsaplan} -d ${POSTGRES_DB:-itsaplan}']
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   # S3-compatible object store for issue attachments.
-  # Both the S3 API (:9000) and the console (:9001) stay inside the compose
-  # network: the api streams attachment bytes through itself, so no port is
-  # published. Administer through mc from inside the network or an SSH tunnel.
+  # S3-compatible object store for issue attachments (MinIO).
+  # S3 API (:9000) and web console (:9001).
   minio:
-    image: minio/minio:latest
+    build:
+      context: .
+      dockerfile: docker/minio/Dockerfile
+    image: ghcr.io/croffasia/itsaplan-minio:${VERSION:-latest}
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -49,15 +32,21 @@ services:
     volumes:
       - minio-data:/data
     healthcheck:
-      test: ['CMD', 'mc', 'ready', 'local']
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://localhost:9000/minio/health/live']
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 20s
+    ports:
+      - '${MINIO_API_PORT:-19000}:9000'
+      - '${MINIO_CONSOLE_PORT:-19001}:9001'
 
   # One-shot: waits for MinIO, creates the attachments bucket, then exits.
   minio-init:
-    image: minio/mc:latest
+    build:
+      context: .
+      dockerfile: docker/minio-client/Dockerfile
+    image: ghcr.io/croffasia/itsaplan-minio-client:${VERSION:-latest}
     restart: 'no'
     depends_on:
       - minio
@@ -74,20 +63,20 @@ services:
 
   # Applies database migrations on startup, then serves the API.
   api:
-    image: ghcr.io/croffasia/itsaplan-api:${VERSION:-latest}
+    # image: ghcr.io/croffasia/itsaplan-api:${VERSION:-latest}
+    pull_policy: build
     build:
       context: .
       dockerfile: apps/api/Dockerfile
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
       minio-init:
         condition: service_completed_successfully
     environment:
       NODE_ENV: production
-      API_PORT: 3000
-      DATABASE_URL: postgres://${POSTGRES_USER:-itsaplan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-itsaplan}
+      API_PORT: ${API_PORT:-4000}
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
+      DATABASE_DIRECT_URL: ${DATABASE_DIRECT_URL:-}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in .env}
       # Encrypts stored provider credentials at rest (AES-256-GCM). Changing it
       # makes existing stored credentials undecryptable.
@@ -119,13 +108,13 @@ services:
     # start_period covers the backup and the migrations the container applies before
     # it listens.
     healthcheck:
-      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:3000/']
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:${API_PORT:-4000}/']
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 180s
     ports:
-      - '${API_PORT:-3000}:3000'
+      - '${API_PORT:-4000}:${API_PORT:-4000}'
 
   # Webhook delivery, notification delivery, agent schedules, and agent runs.
   # Shares the database with the api. No public ports.
@@ -136,13 +125,11 @@ services:
       dockerfile: apps/worker/Dockerfile
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
       api:
         condition: service_started
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgres://${POSTGRES_USER:-itsaplan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-itsaplan}
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
       # Notification delivery sends email and Telegram messages itself, with the
       # provider credentials stored in the database — encrypted with this key, the
       # same value the api uses.
@@ -162,24 +149,22 @@ services:
   #
   # Must stay at one replica: Telegram hands each getUpdates call to a single
   # caller, so a second instance would take updates away from the first.
-  bot:
-    image: ghcr.io/croffasia/itsaplan-bot:${VERSION:-latest}
-    build:
-      context: .
-      dockerfile: apps/bot/Dockerfile
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: postgres://${POSTGRES_USER:-itsaplan}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-itsaplan}
-      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?set APP_ENCRYPTION_KEY in .env}
+  # bot:
+  #   image: ghcr.io/croffasia/itsaplan-bot:${VERSION:-latest}
+  #   build:
+  #     context: .
+  #     dockerfile: apps/bot/Dockerfile
+  #   restart: unless-stopped
+  #   environment:
+  #     NODE_ENV: production
+  #     DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
+  #     APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?set APP_ENCRYPTION_KEY in .env}
 
   # The origins are read at startup and handed to the browser by the server render,
   # so the image carries none of them and a changed API_URL only needs a restart.
   web:
-    image: ghcr.io/croffasia/itsaplan-web:${VERSION:-latest}
+    # image: ghcr.io/croffasia/itsaplan-web:${VERSION:-latest}
+    pull_policy: build
     build:
       context: .
       dockerfile: apps/web/Dockerfile
@@ -188,27 +173,26 @@ services:
       - api
     environment:
       NODE_ENV: production
-      PORT: 3001
+      PORT: ${WEB_PORT:-4001}
       HOSTNAME: 0.0.0.0
       # The api origin the browser uses.
       API_URL: ${API_URL:?public origin of the api, e.g. https://api.example.com}
       # Where web itself reaches the api: it streams avatars and attachments from
       # there (/media) so they are served from the web origin.
-      SERVICE_URL_API: http://api:3000
+      SERVICE_URL_API: http://api:${API_PORT:-4000}
       # Legal document URLs shown on the logged-out screens; empty hides the notice.
       PRIVACY_URL: ${PRIVACY_URL:-}
       TERMS_URL: ${TERMS_URL:-}
     # /login renders without a session, and without reaching the api.
     healthcheck:
-      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:3001/login']
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:${WEB_PORT:-4001}/login']
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 20s
     ports:
-      - '${WEB_PORT:-3001}:3001'
+      - '${WEB_PORT:-4001}:${WEB_PORT:-4001}'
 
 volumes:
-  postgres-data:
   minio-data:
   db-backups:

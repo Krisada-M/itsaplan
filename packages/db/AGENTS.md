@@ -5,11 +5,12 @@ See root `AGENTS.md` for monorepo-wide rules.
 
 ## Structure
 
-- `src/client.ts` — the `db` instance (one `postgres()` connection, `prepare: false`).
+- `src/client.ts` — pooled-only `db` instance (one `postgres()` connection, `prepare: false`).
 - `src/schema/auth.ts` — **generated** by better-auth CLI. Do NOT edit by hand;
   regenerate with `bun run auth:generate` (from the auth package / root).
 - `src/schema/app.ts` — hand-written application tables. Add domain tables here.
 - `src/schema/index.ts` — re-exports every table; `drizzle.config.ts` points at it.
+- `src/direct-url.ts` — resolves the direct URL used by drizzle-kit, migrations, and backups.
 - `src/permissions.ts` — the permission matrix stored in `team_role.permissions`: the
   resource/action catalog, the default member role, and the normalizer. It lives here
   because the API and the sign-up hook in `@repo/auth` both write it.
