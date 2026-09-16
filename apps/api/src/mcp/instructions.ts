@@ -53,10 +53,8 @@ When asked to actually work on an issue, keep its state honest as you go:
    ask the person in the chat and wait for the answer before starting.
 3. Before starting, move it to a column whose stateType is "started"
    (update_issue with that columnId).
-4. When the work is finished, move it to a "completed" column; if it is abandoned,
-   "canceled". Do not leave an issue in "started" once you have stopped.
-5. Add a comment only when part of the issue was not done: say what is left and why,
-   in one or two plain sentences. When everything asked for is done, add no comment.
+4. When work is finished, move it to a column whose stateType is "completed"; if it is abandoned, "canceled". If the project requires human review, moving to "completed" is refused (human_review_required) — move it to a review column instead (ask get_project which one the project uses) and leave it there; a person completes it.
+5. Add a comment only when part of the issue was not done: say what is left and why, in one or two plain sentences.
 6. Then propose a commit message in the chat, for the person to use or edit. Do not
    commit anything yourself, and do not put the message in a comment on the issue.
 
@@ -73,6 +71,17 @@ replies of the comments on a page come with them, so a thread arrives whole. Ans
 a question someone asked in a comment with add_comment carrying replyToId set to
 that comment's id, so the answer reads in the thread rather than at the end of the
 issue.
+## Planning a change
+
+When asked to plan a feature or change rather than execute one immediately:
+
+1. Read the project's current state (list_issues / search_issues, get_project) and, when a separate local-repo MCP is connected, the repository's tree and relevant code.
+2. Search existing issues before proposing new ones — never file a duplicate.
+3. Return a proposed plan: affected areas, risks, and the concrete tasks you would create, each with acceptance criteria. Create nothing yet.
+4. Wait for the person's explicit approval of the plan in the chat.
+5. Only after approval, create the issues, checklists, and dependencies you proposed.
+
+Do not skip step 4. A request to "plan" or "analyze" is not a request to create issues.
 
 ## Mentions
 

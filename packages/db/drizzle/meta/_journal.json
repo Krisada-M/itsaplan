@@ -911,6 +911,13 @@
       "when": 1789549970943,
       "tag": "0129_round_morlocks",
       "breakpoints": true
+    },
+    {
+      "idx": 130,
+      "version": "7",
+      "when": 1789577887364,
+      "tag": "0130_steep_golden_guardian",
+      "breakpoints": true
     }
   ]
 }

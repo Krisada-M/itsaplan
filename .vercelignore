@@ -1,0 +1,28 @@
+# What `vercel deploy` must not upload from a developer's checkout. The build
+# installs dependencies and builds from source, so everything generated locally is
+# dead weight — and a single file over 100 MB fails the upload outright, which local
+# tool caches (.gitnexus, graft, .next/dev) reach on their own.
+node_modules
+.next
+.turbo
+dist
+out
+build
+coverage
+*.tsbuildinfo
+
+# Local secrets. The values a deployment uses are the project's environment
+# variables in Vercel, never a file from someone's machine.
+.env
+.env.*
+.vercel
+
+# Local agent and code-intelligence caches.
+.gitnexus
+graft
+.agents
+.claude
+.codex
+.workspace
+.playwright-mcp
+*.log

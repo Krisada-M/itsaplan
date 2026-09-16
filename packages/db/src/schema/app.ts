@@ -110,6 +110,7 @@ export const project = pgTable('project', {
   // settings, not from the project, and only counts while team.mcp_enabled is on.
   // The starting value is the instance-wide project default set in god mode.
   mcpEnabled: boolean('mcp_enabled').notNull().default(false),
+  requiresHumanReview: boolean('requires_human_review').notNull().default(false),
   // Optional sections of the app, toggled per project in Settings -> Features. All
   // on by default. Turning one off only hides its UI; the rows it owns stay and
   // come back with it.

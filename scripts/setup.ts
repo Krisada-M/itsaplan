@@ -364,9 +364,17 @@ if (mode === 'dev') {
   );
 
   const dbPort = await askPort('Postgres', Number(env.get('POSTGRES_PORT') || 5432));
+  const minioApiPort = await askPort('MinIO', Number(env.get('MINIO_API_PORT') || 9000));
+  const minioConsolePort = await askPort(
+    'the MinIO console',
+    Number(env.get('MINIO_CONSOLE_PORT') || 9001),
+  );
   const apiPort = await askPort('the api', Number(env.get('API_PORT') || 3000));
 
   env.set('POSTGRES_PORT', String(dbPort));
+  env.set('MINIO_API_PORT', String(minioApiPort));
+  env.set('MINIO_CONSOLE_PORT', String(minioConsolePort));
+  env.set('S3_ENDPOINT', `http://localhost:${minioApiPort}`);
   env.set('API_PORT', String(apiPort));
   env.set('API_URL', `http://localhost:${apiPort}`);
   await writeSecrets(env, 'itsaplan-dev_postgres-dev-data');

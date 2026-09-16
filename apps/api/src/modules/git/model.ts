@@ -100,6 +100,15 @@ export const GitProviderConnectionResponse = t.Object({
 });
 
 export const GitProviderConnectionListResponse = t.Array(GitProviderConnectionResponse);
+export const ProjectRepositoryResponse = t.Object({
+  id: t.Number(),
+  provider: GitProvider,
+  fullName: t.String(),
+  webUrl: t.String(),
+  status: t.Union([t.Literal('connected'), t.Literal('error')]),
+});
+
+export const ProjectRepositoryListResponse = t.Array(ProjectRepositoryResponse);
 
 export const createGitProviderConnectionBody = t.Object({
   provider: GitProvider,

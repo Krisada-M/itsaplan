@@ -1,0 +1,1 @@
+ALTER TABLE "project" ADD COLUMN "requires_human_review" boolean DEFAULT false NOT NULL;

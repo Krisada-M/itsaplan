@@ -48,9 +48,17 @@ function parentDomain(origin: string | undefined): string | undefined {
   return '.' + labels.slice(1).join('.');
 }
 
-// Explicit COOKIE_DOMAIN wins (needed for multi-label TLDs or deep subdomains);
-// otherwise derive it from the frontend origin.
-const cookieDomain = process.env.COOKIE_DOMAIN || parentDomain(trustedOrigins[0]);
+// Web and api on unrelated registrable domains — two *.vercel.app projects, say —
+// are cross-site: the session cookie has to be SameSite=None and Secure, and no
+// domain can carry it, since neither host owns the other's. COOKIE_SAME_SITE=none
+// is that deployment; unset is a single site or sibling subdomains.
+const crossSite = process.env.COOKIE_SAME_SITE === 'none';
+
+// Explicit COOKIE_DOMAIN wins for same-site sibling subdomains; otherwise
+// derive it from the first frontend origin.
+const cookieDomain = crossSite
+  ? undefined
+  : process.env.COOKIE_DOMAIN || parentDomain(trustedOrigins[0]);
 
 // WebAuthn relying-party id: the frontend domain the passkey is bound to (no port,
 // no scheme). The WebAuthn ceremony runs in the frontend JS, so the expected origin
@@ -674,9 +682,11 @@ export const auth = betterAuth({
       : {}),
     // For a single site (localhost / one domain) "lax" is enough. Subdomains of one
     // registrable domain are same-site, so "lax" cookies are still sent between them.
+    // Across sites the browser only sends the cookie when it is "none", which it only
+    // accepts on a secure cookie.
     defaultCookieAttributes: {
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      sameSite: crossSite ? 'none' : 'lax',
+      secure: crossSite || process.env.NODE_ENV === 'production',
     },
   },
 });

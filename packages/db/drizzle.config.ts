@@ -1,5 +1,6 @@
 import { config } from 'dotenv';
 import { defineConfig } from 'drizzle-kit';
+import { getDirectDatabaseUrl } from './src/direct-url';
 
 // Load environment variables from the monorepo root .env. `quiet` drops the banner
 // dotenv prints on every load.
@@ -10,7 +11,7 @@ export default defineConfig({
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL!,
+    url: getDirectDatabaseUrl(),
   },
   verbose: true,
   strict: true,

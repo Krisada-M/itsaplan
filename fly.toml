@@ -1,0 +1,22 @@
+app = "life-control-api"
+primary_region = "sin"
+
+[build]
+  dockerfile = "apps/api/Dockerfile"
+
+[env]
+  API_PORT = "3000"
+  # No volume is mounted, so migrate.ts has nowhere to write its pre-migration dump.
+  # Supabase keeps its own backups.
+  SKIP_PRE_MIGRATION_BACKUP = "1"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"

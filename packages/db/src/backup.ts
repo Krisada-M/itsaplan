@@ -11,6 +11,7 @@ import { mkdir, readdir, stat, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Sql } from 'postgres';
 
+import { getDirectDatabaseUrl } from './direct-url';
 export const BACKUP_DIR = process.env.BACKUP_DIR || '/backups';
 
 // A value that is not a positive number falls back to the default rather than
@@ -59,8 +60,7 @@ function stamp(date: Date): string {
 // Runs pg_dump into BACKUP_DIR. Throws with pg_dump's own stderr when it fails, and
 // when it writes an empty file — a truncated dump restores nothing.
 export async function writeBackup(migrations: string[]): Promise<BackupResult> {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error('DATABASE_URL is not set — cannot take a backup.');
+  const url = getDirectDatabaseUrl();
   await mkdir(BACKUP_DIR, { recursive: true });
   const createdAt = new Date();
   const path = join(BACKUP_DIR, `itsaplan-${stamp(createdAt)}.dump`);

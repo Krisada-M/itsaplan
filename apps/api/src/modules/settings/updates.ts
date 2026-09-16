@@ -1,4 +1,4 @@
-import pkg from '../../../../../package.json';
+import pkg from '../../../../../package.json' with { type: 'json' };
 
 // Whether a newer release is published, plus the notes to show. The repository's
 // releases atom feed is the source of the history; the CHANGELOG.md of this build

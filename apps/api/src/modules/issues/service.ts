@@ -33,7 +33,7 @@ import {
 } from 'drizzle-orm';
 import type { IssueQuery } from '#modules/agents/core/issue-query';
 import { iso, num, numOrNull, HttpError } from '#shared/lib';
-import type { ProjectRow } from '#modules/projects/service';
+import { getProjectById, type ProjectRow } from '#modules/projects/service';
 import { assertProjectFeature } from '#shared/access';
 import {
   getCustomFieldById,
@@ -71,6 +71,7 @@ import { getMembership } from '#modules/members/service';
 import { enqueueAgentRun } from '#modules/agents/core/run-queue';
 import { applySubtaskAutomation } from './automation';
 import { assertWipLimit, columnAutoAssignee, wipLimitBreach } from '#modules/columns/service';
+import { columnStateTypes } from '#modules/git/service';
 
 // Data access for issues and their per-issue data: labels, custom field values,
 // and selected options. The human identifier (e.g. "MKT-42") is the project key
@@ -1024,6 +1025,22 @@ export async function updateIssue(
   // Only a move into a different column consumes capacity, so re-saving an issue
   // that already sits in a full column is never refused.
   if (movedToColumnId !== null) {
+    const stateType = (await columnStateTypes([movedToColumnId])).get(movedToColumnId);
+    if (stateType === 'completed') {
+      const project = await getProjectById(before.projectId);
+      const userId = actorId(actor);
+      if (
+        project?.requiresHumanReview &&
+        userId &&
+        (await isProjectAgent(before.projectId, userId))
+      ) {
+        throw new HttpError(
+          403,
+          'This project requires human review before an issue can be marked Done. An agent may move it to a review column, but only a person can complete it.',
+          'human_review_required',
+        );
+      }
+    }
     const breach = await wipLimitBreach(movedToColumnId);
     if (breach && !opts?.skipIfColumnFull) throw breach;
     if (breach) return getIssue(id);
