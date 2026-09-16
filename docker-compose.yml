@@ -20,10 +20,7 @@ services:
   # S3-compatible object store for issue attachments (MinIO).
   # S3 API (:9000) and web console (:9001).
   minio:
-    build:
-      context: .
-      dockerfile: docker/minio/Dockerfile
-    image: ghcr.io/croffasia/itsaplan-minio:${VERSION:-latest}
+    image: quay.io/minio/minio:latest
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -43,10 +40,7 @@ services:
 
   # One-shot: waits for MinIO, creates the attachments bucket, then exits.
   minio-init:
-    build:
-      context: .
-      dockerfile: docker/minio-client/Dockerfile
-    image: ghcr.io/croffasia/itsaplan-minio-client:${VERSION:-latest}
+    image: quay.io/minio/mc:latest
     restart: 'no'
     depends_on:
       - minio

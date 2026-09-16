@@ -39,9 +39,7 @@ services:
   # Web console: http://localhost:${MINIO_CONSOLE_PORT:-9001}
   #     login with S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY from .env
   minio:
-    build:
-      context: .
-      dockerfile: docker/minio/Dockerfile
+    image: quay.io/minio/minio:latest
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -55,9 +53,7 @@ services:
 
   # One-shot: waits for MinIO, creates the attachments bucket, then exits.
   minio-init:
-    build:
-      context: .
-      dockerfile: docker/minio-client/Dockerfile
+    image: quay.io/minio/mc:latest
     depends_on:
       - minio
     environment:
