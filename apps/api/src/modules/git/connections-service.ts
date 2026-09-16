@@ -42,6 +42,13 @@ export interface GitManagedRepositoryDto {
   status: 'connected' | 'error';
   lastError: string | null;
 }
+export interface ProjectRepositoryDto {
+  id: number;
+  provider: GitProvider;
+  fullName: string;
+  webUrl: string;
+  status: 'connected' | 'error';
+}
 
 export interface DevelopmentRepositoryDto {
   id: number;
@@ -147,6 +154,29 @@ export async function listDevelopmentRepositories(
     )
     .orderBy(asc(gitProviderConnection.provider), asc(gitManagedRepository.fullName));
   return rows.map((row) => ({ ...row, provider: row.provider as 'github' | 'gitlab' }));
+}
+export async function listProjectRepositories(projectId: number): Promise<ProjectRepositoryDto[]> {
+  const rows = await db
+    .select({
+      id: gitManagedRepository.id,
+      provider: gitProviderConnection.provider,
+      fullName: gitManagedRepository.fullName,
+      webUrl: gitManagedRepository.webUrl,
+      status: gitManagedRepository.status,
+    })
+    .from(gitManagedRepository)
+    .innerJoin(
+      gitProviderConnection,
+      eq(gitManagedRepository.connectionId, gitProviderConnection.id),
+    )
+    .where(eq(gitProviderConnection.projectId, projectId))
+    .orderBy(asc(gitProviderConnection.provider), asc(gitManagedRepository.fullName));
+
+  return rows.map((row) => ({
+    ...row,
+    provider: row.provider as GitProvider,
+    status: row.status === 'error' ? 'error' : 'connected',
+  }));
 }
 
 export async function listManagedPullRequests(

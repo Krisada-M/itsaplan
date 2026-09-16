@@ -34,6 +34,21 @@ async function initialize(apiKey: string) {
 describe('MCP authentication', () => {
   beforeEach(resetDb);
 
+  it('returns planning and human review instructions during initialization', async () => {
+    const member = await signUpTestUser();
+    const created = await auth.api.createApiKey({
+      body: { userId: member.userId, name: 'mcp' },
+    });
+
+    const response = await initialize(created.key);
+    const event = await response.text();
+    const data = event.split('\n').find((line) => line.startsWith('data: '));
+    const result = JSON.parse(data!.slice(6)).result;
+
+    expect(response.status).toBe(200);
+    expect(result.instructions).toContain('Planning a change');
+    expect(result.instructions).toContain('human_review_required');
+  });
   it('refuses a request with no key', async () => {
     const res = await app.handle(
       new Request('http://localhost/mcp', {

@@ -68,6 +68,7 @@ export const ProjectResponse = t.Object({
   description: t.String(),
   mcpEnabled: t.Boolean(),
   teamMcpEnabled: t.Boolean(),
+  requiresHumanReview: t.Boolean(),
   // The optional sections, toggled in Settings -> General. All on by default; a
   // disabled section is hidden in the web app and its rows are kept.
   initiativesEnabled: t.Boolean(),
@@ -166,6 +167,11 @@ export const ProjectSettingsResponse = t.Object({
 export const updateProjectSettingsBody = t.Object({
   features: t.Optional(t.Partial(FeaturesResponse)),
 });
+export const ReviewGateResponse = t.Object({
+  requiresHumanReview: t.Boolean(),
+});
+
+export const updateReviewGateBody = ReviewGateResponse;
 
 // Ten years, well inside the range make_interval and a timestamp can hold.
 export const MAX_AUTO_ARCHIVE_DAYS = 3650;

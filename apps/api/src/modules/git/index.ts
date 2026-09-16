@@ -1,4 +1,5 @@
 import { Elysia, t } from 'elysia';
+import { mcpTool } from '#mcp/generate';
 import { guards } from '#shared/guards';
 import { authContext } from '#shared/auth-context';
 import { checkPermission } from '#shared/access';
@@ -9,6 +10,7 @@ import {
   GitProviderConnectionListResponse,
   GitProviderConnectionResponse,
   GitSettingsResponse,
+  ProjectRepositoryListResponse,
   availableRepositoriesQuery,
   connectRepositoriesBody,
   createGitProviderConnectionBody,
@@ -24,6 +26,7 @@ import {
   disconnectRepository,
   listAvailableRepositories,
   listGitProviderConnections,
+  listProjectRepositories,
   reconcileManagedWebhooks,
 } from './connections-service';
 
@@ -33,6 +36,19 @@ export const gitSettingsRoutes = new Elysia({
 })
   .use(authContext)
   .use(guards)
+  .get('/projects/:projectKey/repositories', ({ project }) => listProjectRepositories(project.id), {
+    projectMember: true,
+    response: { 200: ProjectRepositoryListResponse, ...accessErrors },
+    detail: {
+      summary: "List a project's connected repositories",
+      description:
+        'Read-only: id, provider, fullName, webUrl, status. Never returns tokens, webhook secrets, or credentials.',
+      ...mcpTool('list_project_repositories', {
+        readOnlyHint: true,
+        idempotentHint: true,
+      }),
+    },
+  })
   .get(
     '/projects/:projectKey/settings/git',
     async ({ project, user }) => {

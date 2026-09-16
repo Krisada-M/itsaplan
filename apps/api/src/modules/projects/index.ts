@@ -22,6 +22,7 @@ import {
   ProjectListResponse,
   ProjectResponse,
   ProjectSettingsResponse,
+  ReviewGateResponse,
   SubtaskAutomationResponse,
   copyProjectBody,
   createProjectBody,
@@ -30,6 +31,7 @@ import {
   updateEstimatesBody,
   updateProjectBody,
   updateProjectSettingsBody,
+  updateReviewGateBody,
   updateSubtaskAutomationBody,
 } from './model';
 import {
@@ -44,6 +46,7 @@ import {
   getSubtaskAutomationSettings,
   setSubtaskAutomationSettings,
   setEstimateSettings,
+  setReviewGate,
 } from './service';
 import { copyProject } from './copy';
 
@@ -242,6 +245,29 @@ export const projectRoutes = new Elysia({ name: 'projects', detail: { tags: ['Pr
       projectAdmin: true,
       response: { 200: ProjectSettingsResponse, ...commonErrors },
       detail: { summary: "Update a project's settings" },
+    },
+  )
+  .get(
+    '/projects/:projectKey/settings/review-gate',
+    ({ project }) => ({ requiresHumanReview: project.requiresHumanReview }),
+    {
+      projectOwner: true,
+      response: { 200: ReviewGateResponse, ...accessErrors },
+      detail: { summary: "Get project's human review requirement" },
+    },
+  )
+  .patch(
+    '/projects/:projectKey/settings/review-gate',
+    async ({ project, body }) => {
+      const updated = await setReviewGate(project.id, body.requiresHumanReview);
+      if (!updated) throw new HttpError(404, 'Project not found');
+      return { requiresHumanReview: updated.requiresHumanReview };
+    },
+    {
+      body: updateReviewGateBody,
+      projectOwner: true,
+      response: { 200: ReviewGateResponse, ...commonErrors },
+      detail: { summary: "Update project's human review requirement" },
     },
   )
 

@@ -46,6 +46,7 @@ export interface ProjectRow {
   name: string;
   description: string;
   mcpEnabled: boolean;
+  requiresHumanReview: boolean;
   // The team's own MCP switch, carried here because every MCP gate is a project
   // gate: a project is reachable only while both flags are on.
   teamMcpEnabled: boolean;
@@ -113,6 +114,7 @@ export async function mapProject(row: ProjectWithTeam): Promise<ProjectRow> {
     name: row.name,
     description: row.description,
     mcpEnabled: row.mcpEnabled,
+    requiresHumanReview: row.requiresHumanReview,
     teamMcpEnabled: row.teamMcpEnabled,
     initiativesEnabled: on('initiatives', row.initiativesEnabled),
     dashboardsEnabled: on('dashboards', row.dashboardsEnabled),
@@ -418,6 +420,13 @@ export async function setProjectFeatures(
   return getProjectById(projectId);
 }
 
+export async function setReviewGate(
+  projectId: number,
+  requiresHumanReview: boolean,
+): Promise<ProjectRow | null> {
+  await db.update(project).set({ requiresHumanReview }).where(eq(project.id, projectId));
+  return getProjectById(projectId);
+}
 // Which estimate kinds the project's issues carry, and whether its members log the
 // time they spend. Held on the project row rather than in project_setting: every
 // member's project payload already carries it, so a board knows whether estimates
